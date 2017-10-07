@@ -13,9 +13,8 @@ def _error(*args, **kwargs):
     print(*args, file=sys.stderr, flush=True, **kwargs)
 
 class Bar:
-    def __init__(self, blocks, interval=0.5):
+    def __init__(self, blocks):
         self._blocks = [b for b in blocks if b is not None]
-        self._interval = interval
 
     def _find_block(self, instance):
         for block in self._blocks:
@@ -38,11 +37,18 @@ class Bar:
                 continue
             block.on_click(event)
 
+    def _print_blocks(self):
+        output = []
+        for blk in self._blocks:
+            output.append(blk.get_json())
+        _out(',' + json.dumps(output))
+
     def run(self):
         # start a thread that listens for click events
         thread = threading.Thread(target=self._read_stdin, daemon=True)
         thread.start()
 
+        # write the header
         header = {
             "version": 1,
             "stop_signal": signal.SIGSTOP,
@@ -53,11 +59,12 @@ class Bar:
         _out('[')
         _out("[]")
 
+        # update the blocks at the given interval forever
+        interval = min(b.interval for b in self._blocks)
         while True:
-            output = []
-            for blk in self._blocks:
-                blk.update()
-                output.append(blk.get_json())
-
-            _out(',' + json.dumps(output))
-            time.sleep(0.5)
+            # todo: consider making this more efficient by checking if the value actually changed
+            for block in self._blocks:
+                if block.needs_update():
+                    block.update()
+            self._print_blocks()
+            time.sleep(interval)

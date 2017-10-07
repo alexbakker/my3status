@@ -13,8 +13,10 @@ _colors = {
 }
 
 class Block:
-    def __init__(self, label=None, markup=False, separator=True, align="left"):
+    def __init__(self, label=None, interval=1, markup=False, separator=True, align="left"):
         self._label = label
+        self.interval = interval
+        self._last_update = 0
         self._value = None
         self._markup = "pango" if markup else "none"
         self._separator = separator
@@ -22,6 +24,9 @@ class Block:
 
     def has_id(self, instance):
         return str(id(self)) == instance
+
+    def needs_update(self):
+        return time.time() - self._last_update >= self.interval
 
     def update(self):
         pass
@@ -31,6 +36,10 @@ class Block:
 
     def get_value(self):
         return str(self._value)
+
+    def set_value(self, value):
+        self._value = value
+        self._last_update = time.time()
 
     def get_text(self, width=False):
         text = self.get_width() if width else self.get_value()
@@ -70,7 +79,7 @@ class CPUBlock(Block):
 
     def update(self):
         percents = psutil.cpu_percent(percpu=True)
-        self._value = sum(percents) / len(percents)
+        self.set_value(sum(percents) / len(percents))
 
     def get_width(self):
         return self._fmt.format(100)
@@ -85,7 +94,7 @@ class DiskBlock(Block):
 
     def update(self):
         disk = psutil.disk_usage(self._path)
-        self._value = disk.free
+        self.set_value(disk.free)
 
     def get_value(self):
         return util.bytes_str(self._value)
@@ -96,7 +105,7 @@ class MemBlock(Block):
 
     def update(self):
         mem = psutil.virtual_memory()
-        self._value = mem.available
+        self.set_value(mem.available)
 
     def get_value(self):
         return util.bytes_str(self._value)
@@ -107,7 +116,7 @@ class SwapBlock(Block):
 
     def update(self):
         swap = psutil.swap_memory()
-        self._value = swap.free
+        self.set_value(swap.free)
 
     def get_value(self):
         return util.bytes_str(self._value)
@@ -117,10 +126,10 @@ class NetBlock(Block):
         super().__init__("NET", markup=True, **kwargs)
 
     def update(self):
-        self._value = None
+        self.set_value(None)
         nics = util.get_nics()
         for nic, values in nics.items():
-            self._value = (nic.upper(), values["addr"])
+            self.set_value((nic.upper(), values["addr"]))
 
     def get_value(self):
         if not self._value:
@@ -152,9 +161,9 @@ class NetIOBlock(Block):
                 self._rx += net[nic].bytes_recv
 
         if self._tx != 0 and self._rx != 0:
-            self._value = ((self._tx - tx) * (1 / delta), (self._rx - rx) * (1 / delta))
+            self.set_value(((self._tx - tx) * (1 / delta), (self._rx - rx) * (1 / delta)))
         else:
-            self._value = (0, 0)
+            self.set_value((0, 0))
 
     def get_width(self):
         return self._fmt.format(util.bytes_str_s(100), util.bytes_str_s(100))
@@ -169,7 +178,7 @@ class BatteryBlock(Block):
     def update(self):
         path = "/sys/class/power_supply/{0}/".format(self._label)
         cap = util.read_file_line(path + "capacity")
-        self._value = "{0}%".format(cap)
+        value = "{0}%".format(cap)
 
         status = util.read_file_line(path + "status")
         abr = {
@@ -180,7 +189,7 @@ class BatteryBlock(Block):
         }
         if status in abr:
             status = abr[status]
-            self._value += " {0}".format(status)
+            value += " {0}".format(status)
 
         # this will break if any of these files are missing
         def read_int(filename):
@@ -202,7 +211,9 @@ class BatteryBlock(Block):
                 seconds = 3600 * energy_now / power_now
 
         if seconds != 0:
-            self._value += time.strftime(" (%H:%M)", time.gmtime(seconds))
+            value += time.strftime(" (%H:%M)", time.gmtime(seconds))
+
+        self.set_value(value)
 
     def get_value(self):
         return self._value
@@ -214,7 +225,7 @@ class DateTimeBlock(Block):
 
     def update(self):
         stamp = time.strftime(self._fmt, time.localtime())
-        self._value = util.pango_weight(stamp, "bold")
+        self.set_value(util.pango_weight(stamp, "bold"))
 
 class SensorBlock(Block):
     def __init__(self, dev, name, **kwargs):
@@ -223,7 +234,7 @@ class SensorBlock(Block):
         self._name = name
 
     def update(self):
-        self._value = ""
+        self.set_value("")
 
         temps = psutil.sensors_temperatures()
         if not self._dev in temps:
@@ -231,7 +242,7 @@ class SensorBlock(Block):
 
         for temp in temps[self._dev]:
             if temp.label == self._name:
-                self._value = temp.current
+                self.set_value(temp.current)
                 break
 
     def get_value(self):
@@ -242,8 +253,11 @@ class ScriptBlock(Block):
         super().__init__(**kwargs)
         self._args = args
 
+    def update(self):
+        self.set_value(check_output(self._args).decode("utf-8").rstrip('\n'))
+
     def get_value(self):
-        return check_output(self._args).decode("utf-8").rstrip('\n')
+        return self._value
 
 class KeymapBlock(Block):
     def __init__(self, **kwargs):
