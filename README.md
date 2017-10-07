@@ -53,6 +53,7 @@ class IPBlock(Block):
     def __init__(self, **kwargs):
         super().__init__("IP", **kwargs)
 
-    def get_value(self):
-        return requests.get("https://icanhazip.com").text.rstrip('\n')
+    def update(self):
+        value = requests.get("https://icanhazip.com").text.rstrip('\n')
+        self.set_value(value)
 ```
