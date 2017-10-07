@@ -20,6 +20,9 @@ class Block:
         self._separator = separator
         self._align = align
 
+    def has_id(self, instance):
+        return str(id(self)) == instance
+
     def update(self):
         pass
 
@@ -42,6 +45,7 @@ class Block:
 
     def get_json(self):
         res = {
+            "instance": str(id(self)),
             "full_text": self.get_text(),
             "color": self.get_color(),
             "markup": self._markup,
@@ -54,6 +58,10 @@ class Block:
             res["min_width"] = width
 
         return res
+
+    def on_click(self, event):
+        self.update()
+        return True
 
 class CPUBlock(Block):
     def __init__(self, **kwargs):
