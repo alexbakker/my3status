@@ -50,10 +50,10 @@ from my3status.block import Block
 import requests
 
 class IPBlock(Block):
-    def __init__(self, **kwargs):
-        super().__init__("IP", **kwargs)
+    def __init__(self, interval=10, **kwargs):
+        super().__init__("IP", interval=interval, **kwargs)
 
     def update(self):
         value = requests.get("https://icanhazip.com").text.rstrip('\n')
-        self.set_value(value)
+        return self.set_value(value)
 ```
