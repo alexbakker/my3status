@@ -144,7 +144,7 @@ class NetIOBlock(Block):
         self._time = 0
         self._fmt = "{0}   {1}"
 
-    # todo: reset self._tx and self._rx to zero when swithing interfaces
+    # todo: reset self._tx and self._rx to zero when switching interfaces
     def update(self):
         t = self._time
         self._time = time.time()
@@ -254,7 +254,8 @@ class ScriptBlock(Block):
         self._args = args
 
     def update(self):
-        self.set_value(check_output(self._args).decode("utf-8").rstrip('\n'))
+        value = check_output(self._args).decode("utf-8").rstrip('\n')
+        self.set_value(value)
 
     def get_value(self):
         return self._value
