@@ -6,7 +6,7 @@ configured entirely in Python.
 ![](/screenshots/example.png)
 
 As the name suggests, this is __my__ i3status. I will probably not accept any
-feature requests, but feel to submit bug fixes.
+feature requests, but feel free to submit bug fixes.
 
 ## Installation and configuration
 
