@@ -9,6 +9,7 @@ _colors = {
     "red": "#ff0000",
     "green": "#00ff00",
     "blue": "#0000ff",
+    "yellow": "#ffff00",
     "white": "#ffffff"
 }
 
@@ -35,6 +36,9 @@ class Block:
     def get_color(self):
         return _colors["white"]
 
+    def is_urgent(self):
+        return False
+
     def get_value(self):
         return str(self._value)
 
@@ -60,6 +64,7 @@ class Block:
             "instance": str(id(self)),
             "full_text": self.get_text(),
             "color": self.get_color(),
+            "urgent": self.is_urgent(),
             "markup": self._markup,
             "separator": self._separator,
             "align": self._align
@@ -82,6 +87,14 @@ class CPUBlock(Block):
     def update(self):
         percents = psutil.cpu_percent(percpu=True)
         return self.set_value(sum(percents) / len(percents))
+
+    def is_urgent(self):
+        return self._value >= 100
+
+    def get_color(self):
+        if self._value >= 50 and self._value < 100:
+            return _colors["yellow"]
+        return _colors["white"]
 
     def get_width(self):
         return self._fmt.format(100)
@@ -232,7 +245,7 @@ class DateTimeBlock(Block):
         return self.set_value(util.pango_weight(stamp, "bold"))
 
 class SensorBlock(Block):
-    def __init__(self, dev, name, interval=5, **kwargs):
+    def __init__(self, dev, name="", interval=5, **kwargs):
         super().__init__(interval=interval, **kwargs)
         self._dev = dev
         self._name = name
@@ -261,8 +274,3 @@ class ScriptBlock(Block):
 
     def get_value(self):
         return self._value
-
-class KeymapBlock(Block):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
