@@ -39,8 +39,10 @@ class Block:
         return str(self._value)
 
     def set_value(self, value):
+        changed = self._value != value
         self._value = value
         self._last_update = time.time()
+        return changed
 
     def get_text(self, width=False):
         text = self.get_width() if width else self.get_value()
@@ -70,8 +72,7 @@ class Block:
         return res
 
     def on_click(self, event):
-        self.update()
-        return True
+        return self.update()
 
 class CPUBlock(Block):
     def __init__(self, **kwargs):
@@ -80,7 +81,7 @@ class CPUBlock(Block):
 
     def update(self):
         percents = psutil.cpu_percent(percpu=True)
-        self.set_value(sum(percents) / len(percents))
+        return self.set_value(sum(percents) / len(percents))
 
     def get_width(self):
         return self._fmt.format(100)
@@ -95,7 +96,7 @@ class DiskBlock(Block):
 
     def update(self):
         disk = psutil.disk_usage(self._path)
-        self.set_value(disk.free)
+        return self.set_value(disk.free)
 
     def get_value(self):
         return util.bytes_str(self._value)
@@ -106,7 +107,7 @@ class MemBlock(Block):
 
     def update(self):
         mem = psutil.virtual_memory()
-        self.set_value(mem.available)
+        return self.set_value(mem.available)
 
     def get_value(self):
         return util.bytes_str(self._value)
@@ -117,7 +118,7 @@ class SwapBlock(Block):
 
     def update(self):
         swap = psutil.swap_memory()
-        self.set_value(swap.free)
+        return self.set_value(swap.free)
 
     def get_value(self):
         return util.bytes_str(self._value)
@@ -132,7 +133,7 @@ class NetBlock(Block):
         for nic, values in nics.items():
             value = (nic.upper(), values["addr"])
             break
-        self.set_value(value)
+        return self.set_value(value)
 
     def get_value(self):
         if not self._value:
@@ -163,10 +164,10 @@ class NetIOBlock(Block):
                 self._tx += net[nic].bytes_sent
                 self._rx += net[nic].bytes_recv
 
-        if self._tx != 0 and self._rx != 0:
-            self.set_value(((self._tx - tx) * (1 / delta), (self._rx - rx) * (1 / delta)))
-        else:
-            self.set_value((0, 0))
+        if self._tx == 0 or self._rx == 0:
+            return self.set_value((0, 0))
+
+        return self.set_value(((self._tx - tx) * (1 / delta), (self._rx - rx) * (1 / delta)))
 
     def get_width(self):
         return self._fmt.format(util.bytes_str_s(100), util.bytes_str_s(100))
@@ -216,7 +217,7 @@ class BatteryBlock(Block):
         if seconds != 0:
             value += time.strftime(" (%H:%M)", time.gmtime(seconds))
 
-        self.set_value(value)
+        return self.set_value(value)
 
     def get_value(self):
         return self._value
@@ -228,7 +229,7 @@ class DateTimeBlock(Block):
 
     def update(self):
         stamp = time.strftime(self._fmt, time.localtime())
-        self.set_value(util.pango_weight(stamp, "bold"))
+        return self.set_value(util.pango_weight(stamp, "bold"))
 
 class SensorBlock(Block):
     def __init__(self, dev, name, interval=5, **kwargs):
@@ -244,7 +245,7 @@ class SensorBlock(Block):
                 if temp.label == self._name:
                     value = temp.current
                     break
-        self.set_value(value)
+        return self.set_value(value)
 
     def get_value(self):
         return "{0:.1f}°C".format(self._value)
@@ -256,7 +257,7 @@ class ScriptBlock(Block):
 
     def update(self):
         value = check_output(self._args).decode("utf-8").rstrip('\n')
-        self.set_value(value)
+        return self.set_value(value)
 
     def get_value(self):
         return self._value

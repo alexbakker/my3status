@@ -64,8 +64,11 @@ class Bar:
         interval = min(b.interval for b in self._blocks)
         while True:
             # todo: consider making this more efficient by checking if the value actually changed
+            changed = False
             for block in self._blocks:
                 if block.needs_update():
-                    block.update()
-            self._print_blocks()
+                    if not changed & block.update():
+                        changed = True
+            if changed:
+                self._print_blocks()
             time.sleep(interval)
