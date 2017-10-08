@@ -63,7 +63,6 @@ class Bar:
         # update the blocks at the given interval forever
         interval = min(b.interval for b in self._blocks)
         while True:
-            # todo: consider making this more efficient by checking if the value actually changed
             changed = False
             for block in self._blocks:
                 if block.needs_update():
