@@ -191,11 +191,11 @@ class NetIOBlock(Block):
 class BatteryBlock(Block):
     def __init__(self, name, interval=2, **kwargs):
         super().__init__(name, interval=interval, **kwargs)
+        self._value = (0, None, 0)
 
     def update(self):
         path = "/sys/class/power_supply/{0}/".format(self._label)
         cap = util.read_file_line(path + "capacity")
-        value = "{0}%".format(cap)
 
         status = util.read_file_line(path + "status")
         abr = {
@@ -204,9 +204,7 @@ class BatteryBlock(Block):
             "Discharging": "DIS",
             #"Unknown": "UNK"
         }
-        if status in abr:
-            status = abr[status]
-            value += " {0}".format(status)
+        status = abr[status] if status in abr else None
 
         # this will break if any of these files are missing
         def read_int(filename):
@@ -227,13 +225,15 @@ class BatteryBlock(Block):
             elif status == "DIS":
                 seconds = 3600 * energy_now / power_now
 
-        if seconds != 0:
-            value += time.strftime(" (%H:%M)", time.gmtime(seconds))
-
-        return self.set_value(value)
+        return self.set_value((cap, status, seconds))
 
     def get_value(self):
-        return self._value
+        value = "{0}%".format(self._value[0])
+        if self._value[1]:
+            value += " {0}".format(self._value[1])
+        if self._value[2] != 0:
+            value += time.strftime(" (%H:%M)", time.gmtime(self._value[2]))
+        return value
 
 class DateTimeBlock(Block):
     def __init__(self, fmt="%a %d-%m-%Y %H:%M:%S", **kwargs):
@@ -241,8 +241,11 @@ class DateTimeBlock(Block):
         self._fmt = fmt
 
     def update(self):
-        stamp = time.strftime(self._fmt, time.localtime())
-        return self.set_value(util.pango_weight(stamp, "bold"))
+        return self.set_value(time.localtime())
+
+    def get_value(self):
+        stamp = time.strftime(self._fmt, self._value)
+        return util.pango_weight(stamp, "bold")
 
 class SensorBlock(Block):
     def __init__(self, dev, name="", interval=5, **kwargs):
@@ -271,6 +274,3 @@ class ScriptBlock(Block):
     def update(self):
         value = check_output(self._args).decode("utf-8").rstrip('\n')
         return self.set_value(value)
-
-    def get_value(self):
-        return self._value
