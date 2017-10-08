@@ -15,6 +15,7 @@ _colors = {
 class Block:
     def __init__(self, label=None, interval=1, markup=False, separator=True, align="left"):
         self._label = label
+        # todo: allow setting interval -1 to make updates manual-only
         self.interval = interval
         self._last_update = 0
         self._value = None
@@ -88,8 +89,8 @@ class CPUBlock(Block):
         return self._fmt.format(self._value)
 
 class DiskBlock(Block):
-    def __init__(self, label, path, **kwargs):
-        super().__init__(label, **kwargs)
+    def __init__(self, label, path, interval=5, **kwargs):
+        super().__init__(label, interval=interval, **kwargs)
         self._path = path
 
     def update(self):
@@ -100,8 +101,8 @@ class DiskBlock(Block):
         return util.bytes_str(self._value)
 
 class MemBlock(Block):
-    def __init__(self, **kwargs):
-        super().__init__("MEM", **kwargs)
+    def __init__(self, interval=5, **kwargs):
+        super().__init__("MEM", interval=interval, **kwargs)
 
     def update(self):
         mem = psutil.virtual_memory()
@@ -111,8 +112,8 @@ class MemBlock(Block):
         return util.bytes_str(self._value)
 
 class SwapBlock(Block):
-    def __init__(self, **kwargs):
-        super().__init__("SWAP", **kwargs)
+    def __init__(self, interval=5, **kwargs):
+        super().__init__("SWAP", interval=interval, **kwargs)
 
     def update(self):
         swap = psutil.swap_memory()
@@ -122,8 +123,8 @@ class SwapBlock(Block):
         return util.bytes_str(self._value)
 
 class NetBlock(Block):
-    def __init__(self, **kwargs):
-        super().__init__("NET", markup=True, **kwargs)
+    def __init__(self, interval=2, **kwargs):
+        super().__init__("NET", interval=interval, markup=True, **kwargs)
 
     def update(self):
         self.set_value(None)
@@ -172,8 +173,8 @@ class NetIOBlock(Block):
         return self._fmt.format(util.bytes_str_s(self._value[0]), util.bytes_str_s(self._value[1]))
 
 class BatteryBlock(Block):
-    def __init__(self, name, **kwargs):
-        super().__init__(name, **kwargs)
+    def __init__(self, name, interval=2, **kwargs):
+        super().__init__(name, interval=interval, **kwargs)
 
     def update(self):
         path = "/sys/class/power_supply/{0}/".format(self._label)
@@ -228,8 +229,8 @@ class DateTimeBlock(Block):
         self.set_value(util.pango_weight(stamp, "bold"))
 
 class SensorBlock(Block):
-    def __init__(self, dev, name, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, dev, name, interval=5, **kwargs):
+        super().__init__(interval=interval, **kwargs)
         self._dev = dev
         self._name = name
 
@@ -263,3 +264,4 @@ class ScriptBlock(Block):
 class KeymapBlock(Block):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+
