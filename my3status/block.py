@@ -127,10 +127,12 @@ class NetBlock(Block):
         super().__init__("NET", interval=interval, markup=True, **kwargs)
 
     def update(self):
-        self.set_value(None)
+        value = None
         nics = util.get_nics()
         for nic, values in nics.items():
-            self.set_value((nic.upper(), values["addr"]))
+            value = (nic.upper(), values["addr"])
+            break
+        self.set_value(value)
 
     def get_value(self):
         if not self._value:
@@ -235,16 +237,14 @@ class SensorBlock(Block):
         self._name = name
 
     def update(self):
-        self.set_value("")
-
+        value = -1
         temps = psutil.sensors_temperatures()
-        if not self._dev in temps:
-            return
-
-        for temp in temps[self._dev]:
-            if temp.label == self._name:
-                self.set_value(temp.current)
-                break
+        if self._dev in temps:
+            for temp in temps[self._dev]:
+                if temp.label == self._name:
+                    value = temp.current
+                    break
+        self.set_value(value)
 
     def get_value(self):
         return "{0:.1f}°C".format(self._value)
