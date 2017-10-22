@@ -12,5 +12,8 @@ setup(
     install_requires=[
         "psutil",
     ],
+    extras_require={
+        "volume": "pulsectl"
+    },
     license="MIT"
 )

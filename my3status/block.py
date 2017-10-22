@@ -13,6 +13,13 @@ _colors = {
     "white": "#ffffff"
 }
 
+have_pulsectl = False
+try:
+    import pulsectl
+    have_pulsectl = True
+except:
+    pass
+
 class Block:
     def __init__(self, label=None, interval=1, markup=False, separator=True, align="left"):
         self._label = label
@@ -274,3 +281,21 @@ class ScriptBlock(Block):
     def update(self):
         value = check_output(self._args).decode("utf-8").rstrip('\n')
         return self.set_value(value)
+
+if have_pulsectl:
+    class VolumeBlock(Block):
+        def __init__(self, **kwargs):
+            super().__init__("VOL", **kwargs)
+            self._pulse = pulsectl.Pulse("my3status-volume")
+
+        def _get_sink(self):
+            name = self._pulse.server_info().default_sink_name
+            return self._pulse.get_sink_by_name(name)
+
+        def update(self):
+            sink = self._get_sink()
+            value = self._pulse.volume_get_all_chans(sink)
+            return self.set_value(int(value * 100))
+
+        def get_value(self):
+            return "{0}%".format(self._value)
