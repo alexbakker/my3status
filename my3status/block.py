@@ -339,18 +339,38 @@ class ScriptBlock(Block):
 
 if have_pulsectl:
     class VolumeBlock(Block):
-        def __init__(self, **kwargs):
+        def __init__(self, step=0.05, **kwargs):
             super().__init__("VOL", **kwargs)
+            self._step = step
             self._pulse = pulsectl.Pulse("my3status-volume")
 
         def _get_sink(self):
             name = self._pulse.server_info().default_sink_name
             return self._pulse.get_sink_by_name(name)
 
+        def _change_vol(self, change):
+            sink = self._get_sink()
+            volume = self._pulse.volume_get_all_chans(sink) + change
+            if volume < 0.0:
+                volume = 0.0
+            elif volume > 1.0:
+                volume = 1.0
+            self._pulse.volume_set_all_chans(sink, volume)
+            return self.update()
+
+        def on_button_wheel_up(self, event):
+            return self._change_vol(self._step)
+
+        def on_button_wheel_down(self, event):
+            return self._change_vol(-self._step)
+
         def update(self):
             sink = self._get_sink()
-            value = self._pulse.volume_get_all_chans(sink)
-            return self.set_value(int(value * 100))
+            volume = self._pulse.volume_get_all_chans(sink)
+            return self.set_value((int(volume * 100), bool(sink.mute)))
 
         def get_value(self):
-            return "{0}%".format(self._value)
+            if self._value[1]:
+                return "MUTE"
+            else:
+                return "{0}%".format(self._value[0])
