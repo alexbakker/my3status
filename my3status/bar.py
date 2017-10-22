@@ -34,7 +34,8 @@ class Bar:
             if not block:
                 _error("error: unable to find block for click event")
                 continue
-            if block.on_click(event):
+            del event["instance"]
+            if block.on_button(event):
                 self._print_blocks()
 
     def _print_blocks(self):

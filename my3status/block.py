@@ -30,6 +30,19 @@ class Block:
         self._markup = "pango" if markup else "none"
         self._separator = separator
         self._align = align
+        self.set_button_map({
+            1: self.on_button_left,
+            2: self.on_button_middle,
+            3: self.on_button_right,
+            4: self.on_button_wheel_up,
+            5: self.on_button_wheel_down,
+            6: self.on_button_wheel_left,
+            7: self.on_button_wheel_right,
+            8: self.on_button_thumb1,
+            9: self.on_button_thumb2,
+            10: self.on_button_ext1,
+            11: self.on_button_ext2
+        })
 
     def has_id(self, instance):
         return str(id(self)) == instance
@@ -38,7 +51,7 @@ class Block:
         return time.time() - self._last_update >= self.interval
 
     def update(self):
-        pass
+        return False
 
     def get_color(self):
         return _colors["white"]
@@ -83,7 +96,49 @@ class Block:
 
         return res
 
-    def on_click(self, event):
+    def set_button_map(self, button_map):
+        self._button_map = button_map
+
+    def on_button(self, event):
+        i = event["button"]
+        if not i in self._button_map:
+            return self.on_button_unknown(event)
+        return self._button_map[i](event)
+
+    def on_button_left(self, event):
+        return self.update()
+
+    def on_button_middle(self, event):
+        return self.update()
+
+    def on_button_right(self, event):
+        return self.update()
+
+    def on_button_wheel_up(self, event):
+        return self.update()
+
+    def on_button_wheel_down(self, event):
+        return self.update()
+
+    def on_button_wheel_left(self, event):
+        return self.update()
+
+    def on_button_wheel_right(self, event):
+        return self.update()
+
+    def on_button_thumb1(self, event):
+        return self.update()
+
+    def on_button_thumb2(self, event):
+        return self.update()
+
+    def on_button_ext1(self, event):
+        return self.update()
+
+    def on_button_ext2(self, event):
+        return self.update()
+
+    def on_button_unknown(self, event):
         return self.update()
 
 class CPUBlock(Block):
