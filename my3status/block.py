@@ -1,4 +1,4 @@
-from subprocess import check_output
+import subprocess
 import time
 
 import psutil
@@ -334,14 +334,15 @@ class ScriptBlock(Block):
         self._args = args
 
     def update(self):
-        value = check_output(self._args).decode("utf-8").rstrip('\n')
+        value = subprocess.check_output(self._args).decode("utf-8").rstrip('\n')
         return self.set_value(value)
 
 if have_pulsectl:
     class VolumeBlock(Block):
-        def __init__(self, step=0.05, **kwargs):
+        def __init__(self, step=0.05, exe="pavucontrol", **kwargs):
             super().__init__("VOL", **kwargs)
             self._step = step
+            self._exe = exe
             self._pulse = pulsectl.Pulse("my3status-volume")
 
         def _get_sink(self):
@@ -357,6 +358,10 @@ if have_pulsectl:
                 volume = 1.0
             self._pulse.volume_set_all_chans(sink, volume)
             return self.update()
+
+        def on_button_left(self, event):
+            subprocess.Popen([self._exe])
+            return False
 
         def on_button_wheel_up(self, event):
             return self._change_vol(self._step)
