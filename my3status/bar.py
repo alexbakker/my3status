@@ -3,7 +3,6 @@
 import json
 import threading
 import time
-import signal
 import sys
 
 def _out(*args, **kwargs):
@@ -52,8 +51,6 @@ class Bar:
         # write the header
         header = {
             "version": 1,
-            "stop_signal": signal.SIGSTOP,
-            "cont_signal": signal.SIGCONT,
             "click_events": True
         }
         _out(json.dumps(header))
