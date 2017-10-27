@@ -151,10 +151,10 @@ class CPUBlock(Block):
         return self.set_value(sum(percents) / len(percents))
 
     def is_urgent(self):
-        return self._value >= 100
+        return self._value >= 95
 
     def get_color(self):
-        if self._value >= 50 and self._value < 100:
+        if self._value >= 50 and self._value < 95:
             return _colors["yellow"]
         return _colors["white"]
 
