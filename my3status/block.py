@@ -392,8 +392,10 @@ if have_pulsectl:
 if have_requests:
     class PoloniexTickerBlock(Block):
         def __init__(self, market, interval=30, **kwargs):
-            self._market = market.split("_")
-            super().__init__(self._market[1], interval=interval, markup=True, **kwargs)
+            market = market.split("_")
+            super().__init__(market[1], interval=interval, markup=True, **kwargs)
+            self._market = market
+            self.set_button_map(None)
 
         def update(self):
             try:
