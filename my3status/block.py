@@ -107,6 +107,8 @@ class Block:
         self._button_map = button_map
 
     def on_button(self, event):
+        if self._button_map is None:
+            return False
         i = event["button"]
         if not i in self._button_map:
             return self.on_button_unknown(event)
