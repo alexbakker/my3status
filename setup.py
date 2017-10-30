@@ -13,7 +13,8 @@ setup(
         "psutil",
     ],
     extras_require={
-        "volume": "pulsectl"
+        "volume": "pulsectl",
+        "net": "requests"
     },
     license="MIT"
 )

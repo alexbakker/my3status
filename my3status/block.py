@@ -13,6 +13,13 @@ _colors = {
     "white": "#ffffff"
 }
 
+have_requests = False
+try:
+    import requests
+    have_requests = True
+except:
+    pass
+
 have_pulsectl = False
 try:
     import pulsectl
@@ -379,3 +386,31 @@ if have_pulsectl:
                 return "MUTE"
             else:
                 return "{0}%".format(self._value[0])
+
+if have_requests:
+    class PoloniexTickerBlock(Block):
+        def __init__(self, market, interval=30, **kwargs):
+            self._market = market.split("_")
+            super().__init__(self._market[1], interval=interval, markup=True, **kwargs)
+
+        def update(self):
+            try:
+                data = requests.get("https://poloniex.com/public?command=returnTicker").json()
+                value = float(data["_".join(self._market)]["highestBid"])
+            except:
+                return self.set_value(None)
+            return self.set_value((value if self._value is None else self._value[0], value))
+
+        def get_value(self):
+            if not self._value:
+                return util.pango_color("ERROR", _colors["red"])
+            if self._value[0] > self._value[1]:
+                arrow = "↓"
+                color = _colors["red"]
+            elif self._value[0] < self._value[1]:
+                arrow = "↑"
+                color = _colors["green"]
+            else:
+                arrow = ""
+                color = _colors["white"]
+            return util.pango_color("{0}{1:.2f} {2}".format(arrow, self._value[1], self._market[0]), color)
