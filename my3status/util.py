@@ -1,4 +1,5 @@
 import io
+import time
 from socket import AF_INET
 
 import psutil
@@ -17,6 +18,48 @@ def bytes_str_s(num):
 def read_file_line(path):
     with io.open(path, "rb") as file:
         return file.read().decode("utf-8").rstrip('\n')
+
+def get_bat_stat(bat):
+    path = "/sys/class/power_supply/{0}/".format(bat)
+    cap = int(read_file_line(path + "capacity"))
+
+    status = read_file_line(path + "status")
+    abr = {
+        "Full": "FULL",
+        "Charging": "CHR",
+        "Discharging": "DIS",
+        #"Unknown": "UNK"
+    }
+    status = abr[status] if status in abr else None
+
+    # this will break if any of these files are missing
+    def read_int(filename):
+        return int(read_file_line(path + filename))
+
+    voltage = read_int("voltage_now") / 1000
+    def read_mah(filename):
+        return read_int(filename) / voltage
+
+    energy_now = read_mah("energy_now")
+    energy_full = read_mah("energy_full")
+    power_now = read_mah("power_now")
+
+    seconds = 0
+    if power_now > 0:
+        if status == "CHR":
+            seconds = 3600 * (energy_full - energy_now) / power_now
+        elif status in ["DIS", "FULL"]:
+            seconds = 3600 * energy_now / power_now
+
+    return (cap, status, seconds)
+
+def get_bat_format(bat):
+    value = "{0}%".format(bat[0])
+    if bat[1]:
+        value += " {0}".format(bat[1])
+    if bat[2] != 0:
+        value += time.strftime(" (%H:%M)", time.gmtime(bat[2]))
+    return value
 
 # todo: rewrite this whole mess
 def get_nics():

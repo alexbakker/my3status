@@ -260,51 +260,28 @@ class NetIOBlock(Block):
         return self._fmt.format(util.bytes_str_s(self._value[0]), util.bytes_str_s(self._value[1]))
 
 class BatteryBlock(Block):
-    def __init__(self, name, interval=2, **kwargs):
-        super().__init__(name, interval=interval, **kwargs)
+    def __init__(self, names, interval=2, **kwargs):
+        super().__init__("BAT", interval=interval, **kwargs)
+        self._names = names
         self._value = (0, None, 0)
 
     def update(self):
-        path = "/sys/class/power_supply/{0}/".format(self._label)
-        cap = util.read_file_line(path + "capacity")
-
-        status = util.read_file_line(path + "status")
-        abr = {
-            "Full": "FULL",
-            "Charging": "CHR",
-            "Discharging": "DIS",
-            #"Unknown": "UNK"
-        }
-        status = abr[status] if status in abr else None
-
-        # this will break if any of these files are missing
-        def read_int(filename):
-            return int(util.read_file_line(path + filename))
-
-        voltage = read_int("voltage_now") / 1000
-        def read_mah(filename):
-            return read_int(filename) / voltage
-
-        energy_now = read_mah("energy_now")
-        energy_full = read_mah("energy_full")
-        power_now = read_mah("power_now")
-
-        seconds = 0
-        if power_now > 0:
-            if status == "CHR":
-                seconds = 3600 * (energy_full - energy_now) / power_now
-            elif status == "DIS":
-                seconds = 3600 * energy_now / power_now
-
-        return self.set_value((cap, status, seconds))
+        values = [util.get_bat_stat(bat) for bat in self._names]
+        cap = int(sum([value[0] for value in values]) / len(values))
+        statuses = [value[1] for value in values]
+        status = None
+        if "CHR" in statuses:
+            status = "CHR"
+        elif "DIS" in statuses:
+            status = "DIS"
+        elif "FULL" in statuses:
+            status = "FULL"
+        seconds = sum([value[2] for value in values])
+        value = (cap, status, seconds)
+        return self.set_value(value)
 
     def get_value(self):
-        value = "{0}%".format(self._value[0])
-        if self._value[1]:
-            value += " {0}".format(self._value[1])
-        if self._value[2] != 0:
-            value += time.strftime(" (%H:%M)", time.gmtime(self._value[2]))
-        return value
+        return util.get_bat_format(self._value)
 
 class DateTimeBlock(Block):
     def __init__(self, fmt="%a %d-%m-%Y %H:%M:%S", **kwargs):
