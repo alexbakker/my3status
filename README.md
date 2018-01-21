@@ -13,7 +13,7 @@ feature requests, but feel free to submit bug fixes.
 The installation process consists of a few simple steps.
 
 * Clone this repository
-* Run ``pip install --user --upgrade .``
+* Run ``pip install --user --upgrade .[volume,net]``
 * Copy the example python script below and customize it to your liking
 * Call the script from your i3 config
 
@@ -50,10 +50,10 @@ from my3status.block import Block
 import requests
 
 class IPBlock(Block):
-    def __init__(self, interval=10, **kwargs):
+    def __init__(self, interval=60, **kwargs):
         super().__init__("IP", interval=interval, **kwargs)
 
     def update(self):
-        value = requests.get("https://icanhazip.com").text.rstrip('\n')
+        value = requests.get("https://icanhazip.com", timeout=1).text.rstrip('\n')
         return self.set_value(value)
 ```
