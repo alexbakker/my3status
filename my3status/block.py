@@ -367,17 +367,16 @@ if have_pulsectl:
                 return "{0}%".format(self._value[0])
 
 if have_requests:
-    class PoloniexTickerBlock(Block):
-        def __init__(self, market, interval=30, **kwargs):
-            market = market.split("_")
-            super().__init__(market[1], interval=interval, markup=True, **kwargs)
-            self._market = market
+    class CoinMarketCapBlock(Block):
+        def __init__(self, symbol, coin, interval=60, **kwargs):
+            super().__init__(symbol, interval=interval, markup=True, **kwargs)
+            self._coin = coin
             self.set_button_map(None)
 
         def update(self):
             try:
-                data = requests.get("https://poloniex.com/public?command=returnTicker").json()
-                value = float(data["_".join(self._market)]["highestBid"])
+                data = requests.get("https://api.coinmarketcap.com/v1/ticker/{0}".format(self._coin), timeout=1).json()
+                value = float(data[0]["price_usd"])
             except:
                 return self.set_value(None)
             return self.set_value((value if self._value is None else self._value[0], value))
@@ -394,4 +393,4 @@ if have_requests:
             else:
                 arrow = ""
                 color = _colors["white"]
-            return util.pango_color("{0}{1:.2f} {2}".format(arrow, self._value[1], self._market[0]), color)
+            return util.pango_color("{0}{1:.2f} {2}".format(arrow, self._value[1], "USD"), color)
