@@ -4,6 +4,14 @@ from socket import AF_INET
 
 import psutil
 
+colors = {
+    "red": "#ff0000",
+    "green": "#00ff00",
+    "blue": "#0000ff",
+    "yellow": "#ffff00",
+    "white": "#ffffff"
+}
+
 def bytes_str(num):
     i = 0
     suffix = ["B", "K", "M", "G", "T"]
@@ -59,7 +67,15 @@ def get_bat_format(bat):
         value += " {0}".format(bat[1])
     if bat[2] != 0:
         value += time.strftime(" (%H:%M)", time.gmtime(bat[2]))
-    return value
+    color = colors["white"]
+    if bat[0] > 5:
+        if bat[0] <= 20:
+            color = colors["red"]
+        elif bat[0] <= 50:
+            color = colors["yellow"]
+        elif bat[0] <= 95:
+            color = colors["green"]
+    return pango_color(value, color)
 
 # todo: rewrite this whole mess
 def get_nics():
@@ -92,3 +108,6 @@ def pango_color(s, color):
 
 def pango_weight(s, weight):
     return "<span font_weight=\"{0}\">{1}</span>".format(weight, s)
+
+def pango_size(s, size):
+    return "<span font_size=\"{0}\">{1}</span>".format(size, s)

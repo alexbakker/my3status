@@ -5,14 +5,6 @@ import psutil
 
 import my3status.util as util
 
-_colors = {
-    "red": "#ff0000",
-    "green": "#00ff00",
-    "blue": "#0000ff",
-    "yellow": "#ffff00",
-    "white": "#ffffff"
-}
-
 have_requests = False
 try:
     import requests
@@ -28,13 +20,14 @@ except:
     pass
 
 class Block:
-    def __init__(self, label=None, interval=1, markup=False, separator=True, align="left"):
+    def __init__(self, label=None, label_weight="bold", interval=1, markup=False, separator=True, align="left"):
         self._label = label
+        self._label_weight = label_weight
         # todo: allow setting interval -1 to make updates manual-only
         self.interval = interval
         self._last_update = 0
         self._value = None
-        self._markup = "pango" if markup else "none"
+        self._markup = "pango" if markup or (self._label_weight is not None and label is not None) else "none"
         self._separator = separator
         self._align = align
         self.set_button_map({
@@ -61,7 +54,7 @@ class Block:
         return False
 
     def get_color(self):
-        return _colors["white"]
+        return util.colors["white"]
 
     def is_urgent(self):
         return False
@@ -79,9 +72,12 @@ class Block:
         text = self.get_width() if width else self.get_value()
         if not text:
             return None
-        if not self._label:
+        if self._label is None:
             return " {0} ".format(text)
-        return " {0} {1} ".format(self._label, text)
+        label = self._label
+        if self._label_weight is not None:
+            label = util.pango_weight(label, self._label_weight)
+        return " {0} {1} ".format(label, text)
 
     def get_width(self):
         return None
@@ -152,7 +148,7 @@ class Block:
 
 class CPUBlock(Block):
     def __init__(self, **kwargs):
-        super().__init__("CPU", **kwargs)
+        super().__init__("CPU", markup=True, **kwargs)
         self._fmt = "{0:.2f}%"
 
     def update(self):
@@ -162,16 +158,14 @@ class CPUBlock(Block):
     def is_urgent(self):
         return self._value >= 95
 
-    def get_color(self):
-        if self._value >= 50 and self._value < 95:
-            return _colors["yellow"]
-        return _colors["white"]
-
     def get_width(self):
         return self._fmt.format(100)
 
     def get_value(self):
-        return self._fmt.format(self._value)
+        color = util.colors["white"]
+        if self._value >= 50 and self._value < 95:
+            color = util.colors["yellow"]
+        return util.pango_color(self._fmt.format(self._value), color)
 
 class DiskBlock(Block):
     def __init__(self, label, path, interval=5, **kwargs):
@@ -221,8 +215,8 @@ class NetBlock(Block):
 
     def get_value(self):
         if not self._value:
-            return util.pango_color(" OFFLINE", _colors["red"])
-        return "({0}) {1}".format(self._value[0], util.pango_color(self._value[1], _colors["green"]))
+            return util.pango_color(" OFFLINE", util.colors["red"])
+        return "({0}) {1}".format(self._value[0], util.pango_color(self._value[1], util.colors["green"]))
 
 class NetIOBlock(Block):
     def __init__(self, **kwargs):
@@ -261,9 +255,12 @@ class NetIOBlock(Block):
 
 class BatteryBlock(Block):
     def __init__(self, names, interval=2, **kwargs):
-        super().__init__("BAT", interval=interval, **kwargs)
+        super().__init__("BAT", interval=interval, markup=True, **kwargs)
         self._names = names
         self._value = (0, None, 0)
+
+    def is_urgent(self):
+        return self._value[0] <= 5
 
     def update(self):
         values = [util.get_bat_stat(bat) for bat in self._names]
@@ -284,16 +281,15 @@ class BatteryBlock(Block):
         return util.get_bat_format(self._value)
 
 class DateTimeBlock(Block):
-    def __init__(self, fmt="%a %d-%m-%Y %H:%M:%S", **kwargs):
-        super().__init__(markup=True, **kwargs)
+    def __init__(self, label=None, fmt="%a %d-%m-%Y %H:%M:%S", **kwargs):
+        super().__init__(label=label, **kwargs)
         self._fmt = fmt
 
     def update(self):
         return self.set_value(time.localtime())
 
     def get_value(self):
-        stamp = time.strftime(self._fmt, self._value)
-        return util.pango_weight(stamp, "bold")
+        return time.strftime(self._fmt, self._value).upper()
 
 class SensorBlock(Block):
     def __init__(self, dev, name="", interval=5, **kwargs):
@@ -363,8 +359,7 @@ if have_pulsectl:
         def get_value(self):
             if self._value[1]:
                 return "MUTE"
-            else:
-                return "{0}%".format(self._value[0])
+            return "{0}%".format(self._value[0])
 
 if have_requests:
     class CoinMarketCapBlock(Block):
@@ -383,14 +378,14 @@ if have_requests:
 
         def get_value(self):
             if not self._value:
-                return util.pango_color("ERROR", _colors["red"])
+                return util.pango_color("ERROR", util.colors["red"])
             if self._value[0] > self._value[1]:
-                arrow = "↓"
-                color = _colors["red"]
+                arrow = "⬇"
+                color = util.colors["red"]
             elif self._value[0] < self._value[1]:
-                arrow = "↑"
-                color = _colors["green"]
+                arrow = "⬆"
+                color = util.colors["green"]
             else:
                 arrow = ""
-                color = _colors["white"]
+                color = util.colors["white"]
             return util.pango_color("{0}{1:.2f} {2}".format(arrow, self._value[1], "USD"), color)
