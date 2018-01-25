@@ -361,6 +361,11 @@ if have_pulsectl:
             subprocess.Popen([self._exe])
             return False
 
+        async def on_button_right(self, event):
+            sink = self._get_sink()
+            self._pulse.mute(sink, not bool(sink.mute))
+            return await self.do_update()
+
         async def on_button_wheel_up(self, event):
             return await self._change_vol(self._step)
 
