@@ -14,7 +14,7 @@ setup(
     ],
     extras_require={
         "volume": "pulsectl",
-        "net": "requests"
+        "net": "aiohttp"
     },
     license="MIT"
 )

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import asyncio
 import json
 import threading
 import time
@@ -41,12 +42,26 @@ class Bar:
     def _print_blocks(self):
         output = []
         for blk in self._blocks:
-            output.append(blk.get_json())
+            if blk.has_value():
+                output.append(blk.get_json())
         _out(',' + json.dumps(output))
+
+    async def _update_block(self, block):
+        if await block.do_update_async():
+            self._print_blocks()
+
+    def _run(self, loop):
+        asyncio.set_event_loop(loop)
+        loop.run_forever()
 
     def run(self):
         # start a thread that listens for click events
         thread = threading.Thread(target=self._read_stdin, daemon=True)
+        thread.start()
+
+        # start a task thread
+        loop = asyncio.new_event_loop()
+        thread = threading.Thread(target=self._run, args=(loop,), daemon=True)
         thread.start()
 
         # write the header
@@ -61,11 +76,7 @@ class Bar:
         # update the blocks at the given interval forever
         interval = min(b.interval for b in self._blocks)
         while True:
-            changed = False
             for block in self._blocks:
                 if block.needs_update():
-                    if not changed & block.update():
-                        changed = True
-            if changed:
-                self._print_blocks()
+                    asyncio.run_coroutine_threadsafe(self._update_block(block), loop=loop)
             time.sleep(interval)

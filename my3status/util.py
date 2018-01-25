@@ -108,6 +108,3 @@ def pango_color(s, color):
 
 def pango_weight(s, weight):
     return "<span font_weight=\"{0}\">{1}</span>".format(weight, s)
-
-def pango_size(s, size):
-    return "<span font_size=\"{0}\">{1}</span>".format(size, s)

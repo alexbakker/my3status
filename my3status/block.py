@@ -1,14 +1,15 @@
+import asyncio
 import subprocess
 import time
+import async_timeout
 
 import psutil
-
 import my3status.util as util
 
-have_requests = False
+have_aiohttp = False
 try:
-    import requests
-    have_requests = True
+    import aiohttp
+    have_aiohttp = True
 except:
     pass
 
@@ -26,6 +27,7 @@ class Block:
         # todo: allow setting interval -1 to make updates manual-only
         self.interval = interval
         self._last_update = 0
+        self._is_updating = False
         self._value = None
         self._markup = "pango" if markup or (self._label_weight is not None and label is not None) else "none"
         self._separator = separator
@@ -47,11 +49,8 @@ class Block:
     def has_id(self, instance):
         return str(id(self)) == instance
 
-    def needs_update(self):
-        return time.time() - self._last_update >= self.interval
-
-    def update(self):
-        return False
+    def has_value(self):
+        return self._value is not None
 
     def get_color(self):
         return util.colors["white"]
@@ -62,10 +61,29 @@ class Block:
     def get_value(self):
         return str(self._value)
 
+    def needs_update(self):
+        return not self._is_updating and time.time() - self._last_update >= self.interval
+
+    def do_update(self):
+        if self._is_updating:
+            return False
+        self._is_updating = True
+        return self.update()
+
+    async def do_update_async(self):
+        if self._is_updating:
+            return False
+        self._is_updating = True
+        return await asyncio.coroutine(self.update)()
+
+    def update(self):
+        return self.set_value(None)
+
     def set_value(self, value):
         changed = self._value != value
         self._value = value
         self._last_update = time.time()
+        self._is_updating = False
         return changed
 
     def get_text(self, width=False):
@@ -111,40 +129,40 @@ class Block:
         return self._button_map[i](event)
 
     def on_button_left(self, event):
-        return self.update()
+        return self.do_update()
 
     def on_button_middle(self, event):
-        return self.update()
+        return self.do_update()
 
     def on_button_right(self, event):
-        return self.update()
+        return self.do_update()
 
     def on_button_wheel_up(self, event):
-        return self.update()
+        return self.do_update()
 
     def on_button_wheel_down(self, event):
-        return self.update()
+        return self.do_update()
 
     def on_button_wheel_left(self, event):
-        return self.update()
+        return self.do_update()
 
     def on_button_wheel_right(self, event):
-        return self.update()
+        return self.do_update()
 
     def on_button_thumb1(self, event):
-        return self.update()
+        return self.do_update()
 
     def on_button_thumb2(self, event):
-        return self.update()
+        return self.do_update()
 
     def on_button_ext1(self, event):
-        return self.update()
+        return self.do_update()
 
     def on_button_ext2(self, event):
-        return self.update()
+        return self.do_update()
 
     def on_button_unknown(self, event):
-        return self.update()
+        return self.do_update()
 
 class CPUBlock(Block):
     def __init__(self, **kwargs):
@@ -361,23 +379,26 @@ if have_pulsectl:
                 return "MUTE"
             return "{0}%".format(self._value[0])
 
-if have_requests:
+if have_aiohttp:
     class CoinMarketCapBlock(Block):
         def __init__(self, symbol, coin, interval=60, **kwargs):
             super().__init__(symbol, interval=interval, markup=True, **kwargs)
             self._coin = coin
             self.set_button_map(None)
 
-        def update(self):
+        async def update(self):
             try:
-                data = requests.get("https://api.coinmarketcap.com/v1/ticker/{0}".format(self._coin), timeout=1).json()
-                value = float(data[0]["price_usd"])
+                with async_timeout.timeout(5):
+                    async with aiohttp.ClientSession() as session:
+                        async with session.get("https://api.coinmarketcap.com/v1/ticker/{0}".format(self._coin)) as res:
+                            data = await res.json()
+                            value = float(data[0]["price_usd"])
             except:
-                return self.set_value(None)
+                return self.set_value(-1)
             return self.set_value((value if self._value is None else self._value[0], value))
 
         def get_value(self):
-            if not self._value:
+            if self._value == -1:
                 return util.pango_color("ERROR", util.colors["red"])
             if self._value[0] > self._value[1]:
                 arrow = "⬇"
