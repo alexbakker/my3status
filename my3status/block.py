@@ -1,6 +1,7 @@
 import asyncio
 import subprocess
 import time
+import threading
 import async_timeout
 
 import psutil
@@ -27,7 +28,7 @@ class Block:
         # todo: allow setting interval -1 to make updates manual-only
         self.interval = interval
         self._last_update = 0
-        self._is_updating = False
+        self._lock = threading.Lock()
         self._value = None
         self._markup = "pango" if markup or (self._label_weight is not None and label is not None) else "none"
         self._separator = separator
@@ -62,13 +63,15 @@ class Block:
         return str(self._value)
 
     def needs_update(self):
-        return not self._is_updating and time.time() - self._last_update >= self.interval
+        return not self._lock.locked() and time.time() - self._last_update >= self.interval
 
     async def do_update(self):
-        if self._is_updating:
-            return False
-        self._is_updating = True
-        return await asyncio.coroutine(self.update)()
+        if self._lock.acquire(False):
+            try:
+                return await asyncio.coroutine(self.update)()
+            finally:
+                self._lock.release()
+        return False
 
     def update(self):
         return self.set_value(None)
@@ -77,7 +80,6 @@ class Block:
         changed = self._value != value
         self._value = value
         self._last_update = time.time()
-        self._is_updating = False
         return changed
 
     def get_text(self, width=False):
@@ -320,6 +322,8 @@ class SensorBlock(Block):
         return self.set_value(value)
 
     def get_value(self):
+        if self._value == -1:
+            return util.pango_color("ERROR", util.colors["red"])
         return "{0:.1f}°C".format(self._value)
 
 class ScriptBlock(Block):
@@ -343,7 +347,7 @@ if have_pulsectl:
             name = self._pulse.server_info().default_sink_name
             return self._pulse.get_sink_by_name(name)
 
-        def _change_vol(self, change):
+        async def _change_vol(self, change):
             sink = self._get_sink()
             volume = self._pulse.volume_get_all_chans(sink) + change
             if volume < 0.0:
@@ -351,17 +355,17 @@ if have_pulsectl:
             elif volume > 1.0:
                 volume = 1.0
             self._pulse.volume_set_all_chans(sink, volume)
-            return self.update()
+            return await self.do_update()
 
         def on_button_left(self, event):
             subprocess.Popen([self._exe])
             return False
 
-        def on_button_wheel_up(self, event):
-            return self._change_vol(self._step)
+        async def on_button_wheel_up(self, event):
+            return await self._change_vol(self._step)
 
-        def on_button_wheel_down(self, event):
-            return self._change_vol(-self._step)
+        async def on_button_wheel_down(self, event):
+            return await self._change_vol(-self._step)
 
         def update(self):
             sink = self._get_sink()
