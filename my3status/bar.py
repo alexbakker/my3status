@@ -5,6 +5,7 @@ import json
 import threading
 import time
 import sys
+from concurrent.futures import ThreadPoolExecutor
 
 def _out(*args, **kwargs):
     print(*args, flush=True, **kwargs)
@@ -22,9 +23,22 @@ class Bar:
                 return block
         return None
 
-    def _read_stdin(self):
+    def _print_blocks(self):
+        output = []
+        for blk in self._blocks:
+            if blk.has_value():
+                output.append(blk.get_json())
+        _out(',' + json.dumps(output))
+
+    async def _update_block(self, block):
+        if await block.do_update():
+            self._print_blocks()
+
+    async def _read_stdin(self, loop):
+        executor = ThreadPoolExecutor(max_workers=1)
         while True:
-            line = sys.stdin.readline().rstrip('\n')
+            line = await loop.run_in_executor(executor, sys.stdin.readline)
+            line = line.rstrip('\n')
             if line in ["[", "]"]:
                 continue
             line = line.lstrip(',')
@@ -36,33 +50,21 @@ class Bar:
                 _error("error: unable to find block for click event")
                 continue
             del event["instance"]
-            if block.on_button(event):
+            if await block.on_button(event):
                 self._print_blocks()
-
-    def _print_blocks(self):
-        output = []
-        for blk in self._blocks:
-            if blk.has_value():
-                output.append(blk.get_json())
-        _out(',' + json.dumps(output))
-
-    async def _update_block(self, block):
-        if await block.do_update_async():
-            self._print_blocks()
 
     def _run(self, loop):
         asyncio.set_event_loop(loop)
         loop.run_forever()
 
     def run(self):
-        # start a thread that listens for click events
-        thread = threading.Thread(target=self._read_stdin, daemon=True)
-        thread.start()
-
         # start a task thread
         loop = asyncio.new_event_loop()
         thread = threading.Thread(target=self._run, args=(loop,), daemon=True)
         thread.start()
+
+        # start a task that listens for click events
+        asyncio.run_coroutine_threadsafe(self._read_stdin(loop), loop=loop)
 
         # write the header
         header = {

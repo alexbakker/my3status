@@ -64,13 +64,7 @@ class Block:
     def needs_update(self):
         return not self._is_updating and time.time() - self._last_update >= self.interval
 
-    def do_update(self):
-        if self._is_updating:
-            return False
-        self._is_updating = True
-        return self.update()
-
-    async def do_update_async(self):
+    async def do_update(self):
         if self._is_updating:
             return False
         self._is_updating = True
@@ -120,49 +114,49 @@ class Block:
     def set_button_map(self, button_map):
         self._button_map = button_map
 
-    def on_button(self, event):
+    async def on_button(self, event):
         if self._button_map is None:
             return False
         i = event["button"]
         if not i in self._button_map:
-            return self.on_button_unknown(event)
-        return self._button_map[i](event)
+            return await asyncio.coroutine(self.on_button_unknown)(event)
+        return await asyncio.coroutine(self._button_map[i])(event)
 
-    def on_button_left(self, event):
-        return self.do_update()
+    async def on_button_left(self, event):
+        return await self.do_update()
 
-    def on_button_middle(self, event):
-        return self.do_update()
+    async def on_button_middle(self, event):
+        return await self.do_update()
 
-    def on_button_right(self, event):
-        return self.do_update()
+    async def on_button_right(self, event):
+        return await self.do_update()
 
-    def on_button_wheel_up(self, event):
-        return self.do_update()
+    async def on_button_wheel_up(self, event):
+        return await self.do_update()
 
-    def on_button_wheel_down(self, event):
-        return self.do_update()
+    async def on_button_wheel_down(self, event):
+        return await self.do_update()
 
-    def on_button_wheel_left(self, event):
-        return self.do_update()
+    async def on_button_wheel_left(self, event):
+        return await self.do_update()
 
-    def on_button_wheel_right(self, event):
-        return self.do_update()
+    async def on_button_wheel_right(self, event):
+        return await self.do_update()
 
-    def on_button_thumb1(self, event):
-        return self.do_update()
+    async def on_button_thumb1(self, event):
+        return await self.do_update()
 
-    def on_button_thumb2(self, event):
-        return self.do_update()
+    async def on_button_thumb2(self, event):
+        return await self.do_update()
 
-    def on_button_ext1(self, event):
-        return self.do_update()
+    async def on_button_ext1(self, event):
+        return await self.do_update()
 
-    def on_button_ext2(self, event):
-        return self.do_update()
+    async def on_button_ext2(self, event):
+        return await self.do_update()
 
-    def on_button_unknown(self, event):
-        return self.do_update()
+    async def on_button_unknown(self, event):
+        return await self.do_update()
 
 class CPUBlock(Block):
     def __init__(self, **kwargs):
