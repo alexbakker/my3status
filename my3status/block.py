@@ -397,11 +397,13 @@ if have_aiohttp:
                             data = await res.json()
                             value = float(data[0]["price_usd"])
             except:
-                return self.set_value(-1)
-            return self.set_value((value if self._value is None else self._value[0], value))
+                value = -1
+            return self.set_value((value if self._value is None else self._value[1], value))
 
         def get_value(self):
-            if self._value == -1:
+            if self._value[1] == -1:
+                if self._value[0] != -1:
+                    return "{1:.2f} {2}".format(self._value[0], "USD")
                 return util.pango_color("ERROR", util.colors["red"])
             if self._value[0] > self._value[1]:
                 arrow = "⬇"
