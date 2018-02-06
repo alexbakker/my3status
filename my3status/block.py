@@ -30,6 +30,7 @@ class Block:
         self._last_update = 0
         self._lock = threading.Lock()
         self._value = None
+        self._text = None
         self._markup = "pango" if markup or (self._label_weight is not None and label is not None) else "none"
         self._separator = separator
         self._align = align
@@ -59,7 +60,7 @@ class Block:
     def is_urgent(self):
         return False
 
-    def get_value(self):
+    def get_text(self):
         return str(self._value)
 
     def needs_update(self):
@@ -80,10 +81,12 @@ class Block:
         changed = self._value != value
         self._value = value
         self._last_update = time.time()
+        if changed:
+            self._text = self.get_text()
         return changed
 
-    def get_text(self, width=False):
-        text = self.get_width() if width else self.get_value()
+    def _get_text(self, width=False):
+        text = self.get_width() if width else self._text
         if not text:
             return None
         if self._label is None:
@@ -99,7 +102,7 @@ class Block:
     def get_json(self):
         res = {
             "instance": str(id(self)),
-            "full_text": self.get_text(),
+            "full_text": self._get_text(),
             "color": self.get_color(),
             "urgent": self.is_urgent(),
             "markup": self._markup,
@@ -107,7 +110,7 @@ class Block:
             "align": self._align
         }
 
-        width = self.get_text(width=True)
+        width = self._get_text(width=True)
         if width:
             res["min_width"] = width
 
@@ -175,7 +178,7 @@ class CPUBlock(Block):
     def get_width(self):
         return self._fmt.format(100)
 
-    def get_value(self):
+    def get_text(self):
         color = util.colors["white"]
         if self._value >= 50 and self._value < 95:
             color = util.colors["yellow"]
@@ -190,7 +193,7 @@ class DiskBlock(Block):
         disk = psutil.disk_usage(self._path)
         return self.set_value(disk.free)
 
-    def get_value(self):
+    def get_text(self):
         return util.bytes_str(self._value)
 
 class MemBlock(Block):
@@ -201,7 +204,7 @@ class MemBlock(Block):
         mem = psutil.virtual_memory()
         return self.set_value(mem.available)
 
-    def get_value(self):
+    def get_text(self):
         return util.bytes_str(self._value)
 
 class SwapBlock(Block):
@@ -212,7 +215,7 @@ class SwapBlock(Block):
         swap = psutil.swap_memory()
         return self.set_value(swap.free)
 
-    def get_value(self):
+    def get_text(self):
         return util.bytes_str(self._value)
 
 class NetBlock(Block):
@@ -227,7 +230,7 @@ class NetBlock(Block):
             break
         return self.set_value(value)
 
-    def get_value(self):
+    def get_text(self):
         if not self._value:
             return util.pango_color(" OFFLINE", util.colors["red"])
         return "({0}) {1}".format(self._value[0], util.pango_color(self._value[1], util.colors["green"]))
@@ -264,7 +267,7 @@ class NetIOBlock(Block):
     def get_width(self):
         return self._fmt.format(util.bytes_str_s(100), util.bytes_str_s(100))
 
-    def get_value(self):
+    def get_text(self):
         return self._fmt.format(util.bytes_str_s(self._value[0]), util.bytes_str_s(self._value[1]))
 
 class BatteryBlock(Block):
@@ -291,7 +294,7 @@ class BatteryBlock(Block):
         value = (cap, status, seconds)
         return self.set_value(value)
 
-    def get_value(self):
+    def get_text(self):
         return util.get_bat_format(self._value)
 
 class DateTimeBlock(Block):
@@ -302,7 +305,7 @@ class DateTimeBlock(Block):
     def update(self):
         return self.set_value(time.localtime())
 
-    def get_value(self):
+    def get_text(self):
         return time.strftime(self._fmt, self._value).upper()
 
 class SensorBlock(Block):
@@ -321,7 +324,7 @@ class SensorBlock(Block):
                     break
         return self.set_value(value)
 
-    def get_value(self):
+    def get_text(self):
         if self._value == -1:
             return util.pango_color("ERROR", util.colors["red"])
         return "{0:.1f}°C".format(self._value)
@@ -377,7 +380,7 @@ if have_pulsectl:
             volume = self._pulse.volume_get_all_chans(sink)
             return self.set_value((int(volume * 100), bool(sink.mute)))
 
-        def get_value(self):
+        def get_text(self):
             if self._value[1]:
                 return "MUTE"
             return "{0}%".format(self._value[0])
@@ -400,7 +403,7 @@ if have_aiohttp:
                 value = -1
             return self.set_value((value if self._value is None else self._value[1], value))
 
-        def get_value(self):
+        def get_text(self):
             if self._value[1] == -1:
                 if self._value[0] != -1:
                     return "{1:.2f} {2}".format(self._value[0], "USD")
@@ -411,7 +414,9 @@ if have_aiohttp:
             elif self._value[0] < self._value[1]:
                 arrow = "⬆"
                 color = util.colors["green"]
-            else:
+            elif not self._text:
                 arrow = ""
                 color = util.colors["white"]
+            else:
+                return self._text
             return util.pango_color("{0}{1:.2f} {2}".format(arrow, self._value[1], "USD"), color)
