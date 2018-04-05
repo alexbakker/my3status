@@ -47,13 +47,31 @@ address.
 
 ```python
 from my3status.block import Block
-import requests
+import my3status.util as util
+
+import aiohttp
+import async_timeout
 
 class IPBlock(Block):
     def __init__(self, interval=60, **kwargs):
         super().__init__("IP", interval=interval, **kwargs)
 
-    def update(self):
-        value = requests.get("https://icanhazip.com", timeout=1).text.rstrip('\n')
+    async def update(self):
+        try:
+            with async_timeout.timeout(5):
+                async with aiohttp.ClientSession() as session:
+                    async with session.get("https://icanhazip.com") as res:
+                        text = await res.text()
+                        value = text.rstrip('\n')
+        except:
+            value = ""
         return self.set_value(value)
+
+    def get_text(self):
+        if self._value == "":
+            return util.pango_color("ERROR", util.colors["red"])
+        return self._value
 ```
+
+Obviously, you shouldn't send a request to icanhazip.com every 60 seconds, but
+you get the idea.
