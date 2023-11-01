@@ -1,4 +1,5 @@
 import asyncio
+import inspect
 import subprocess
 import time
 import threading
@@ -69,7 +70,9 @@ class Block:
     async def do_update(self):
         if self._lock.acquire(False):
             try:
-                return await asyncio.coroutine(self.update)()
+                if inspect.isawaitable(self.update):
+                    return await self.update()
+                return self.update()
             finally:
                 self._lock.release()
         return False
